@@ -16,15 +16,15 @@ public class ProfileController {
     @Autowired
     CustomerService customerService;
 
-    @RequestMapping(value = "/profile", method = RequestMethod.POST)
+    @RequestMapping(value = "/customers", method = RequestMethod.POST)
     @PreAuthorize("hasAuthority('create_profile')")
     public Customer save(@RequestBody Customer customer) {
         return customerService.save(customer);
     }
 
-    @RequestMapping(value = "/profile", method = RequestMethod.GET)
-    public ResponseEntity<Customer> findById(@RequestParam int id) {
-        Customer customer = customerService.findById(id);
+    @RequestMapping(value = "/customers/{id}", method = RequestMethod.GET)
+    public ResponseEntity<Customer> findById(@PathVariable(value = "id") int customerId) {
+        Customer customer = customerService.findById(customerId);
         if (customer == null){
             return ResponseEntity.notFound().build();
         }else{
@@ -32,8 +32,8 @@ public class ProfileController {
         }
     }
 
-    @RequestMapping(value = "/profiles", method = RequestMethod.GET)
-    @PreAuthorize("hasRole('ROLE_operator')")
+    @RequestMapping(value = "/customers", method = RequestMethod.GET)
+    @PreAuthorize("hasRole('ROLE_admin')")
     public List<Customer> findAllProfiles() {
         return customerService.getAll();
     }
