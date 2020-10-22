@@ -5,6 +5,7 @@ import com.dilshan.rentcloud.rentservice.model.DetailResponse;
 import com.dilshan.rentcloud.rentservice.model.Response;
 
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 /**
  * @author dilshanboteju
@@ -16,5 +17,5 @@ public interface RentService {
 
     List<Rent> findAll();
 
-    DetailResponse findDetailResponse(int id);
+    DetailResponse findDetailResponse(int id) throws ExecutionException, InterruptedException;
 }

@@ -3,8 +3,11 @@ package com.dilshan.rentcloud.rentservice.service;
 import com.dilshan.rentcloud.model.customer.Customer;
 import com.dilshan.rentcloud.model.rent.Rent;
 import com.dilshan.rentcloud.model.vehicle.Vehicle;
+import com.dilshan.rentcloud.rentservice.hystrix.CommonHysctrixCommand;
+import com.dilshan.rentcloud.rentservice.hystrix.VehicleCommand;
 import com.dilshan.rentcloud.rentservice.model.DetailResponse;
 import com.dilshan.rentcloud.rentservice.repository.RentRepository;
+import com.netflix.hystrix.HystrixCommand;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.cloud.client.loadbalancer.LoadBalanced;
@@ -14,6 +17,8 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 /**
  * @author dilshanboteju
@@ -23,6 +28,9 @@ public class RentServiceImpl implements RentService {
 
     @Autowired
     RentRepository rentRepository;
+
+    @Autowired
+    HystrixCommand.Setter setter;
 
     @LoadBalanced
     @Bean
@@ -54,7 +62,7 @@ public class RentServiceImpl implements RentService {
     }
 
     @Override
-    public DetailResponse findDetailResponse(int id) {
+    public DetailResponse findDetailResponse(int id) throws ExecutionException, InterruptedException {
 
         Rent rent = findById(id);
         Customer customer = getCustomer(rent.getCustomerId());
@@ -62,13 +70,29 @@ public class RentServiceImpl implements RentService {
         return new DetailResponse(rent,customer,vehicle);
     }
 
-    private Customer getCustomer(int cusId){
-        Customer customer = restTemplate.getForObject("http://customer/services/customers/"+cusId, Customer.class);
-        return customer;
+    public DetailResponse findDetailResponseFallBack(int id) {
+
+
+        return new DetailResponse(new Rent(),new Customer(),new Vehicle());
+    }
+
+    private Customer getCustomer(int cusId) throws ExecutionException, InterruptedException {
+
+        CommonHysctrixCommand<Customer> customerCommonHysctrixCommand = new CommonHysctrixCommand<Customer>(setter, ()->{
+            return restTemplate.getForObject("http://customer/services/customers/"+cusId, Customer.class);
+        },()->{
+            return new Customer();
+        });
+
+        Future<Customer> customerFuture = customerCommonHysctrixCommand.queue();
+        return customerFuture.get();
+//        Customer customer = restTemplate.getForObject("http://customer/services/customers/"+cusId, Customer.class);
+//        return customer;
     }
 
     private Vehicle getVehicle(int vehicleId){
-        Vehicle vehicle = restTemplate.getForObject("http://vehicle/services/vehicles/"+vehicleId, Vehicle.class);
-        return vehicle;
+        //Vehicle vehicle = restTemplate.getForObject("http://vehicle/services/vehicles/"+vehicleId, Vehicle.class);
+        VehicleCommand vehicleCommand = new VehicleCommand(restTemplate, vehicleId);
+        return vehicleCommand.execute();
     }
 }
